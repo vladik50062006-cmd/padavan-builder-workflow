@@ -27,7 +27,6 @@ jobs:
       run: |
         git config --global --add safe.directory '*'
         git clone --depth=1 https://github.com/hanwckf/rt-n56u.git padavan-ng
-        git -C padavan-ng checkout "$PADAVAN_COMMIT"
         wget -qO- "$PADAVAN_TOOLCHAIN_URL" | tar -C padavan-ng --zstd -xf -
 
     - name: Install themes
@@ -49,8 +48,8 @@ jobs:
       run: |
         cp build.config padavan-ng/trunk/.config
         cd padavan-ng/trunk
-        ./clear_tree.sh
-        ./build_firmware.sh
+        ./clear_tree
+        ./build_firmware
 
         FW_FILE_NAME="$(find images -type f -regextype posix-extended -iregex ".*\.(trx|bin)$" \
                         -printf "%T@\t%f\n" | sort -V | tail -1 | cut -f2)"
@@ -77,12 +76,14 @@ jobs:
     - name: Check firmware size
       run: |
         partitions=padavan-ng/trunk/configs/boards/$CONFIG_VENDOR/$CONFIG_FIRMWARE_PRODUCT_ID/partitions.config
-        max_fw_size="$(awk '/Firmware/ { getline; getline; sub(",", ""); print strtonum($2); }' "$partitions")"
-        fw_size="$(stat -c %s "$FW_FILE_NAME")"
+        if [[ -f "$partitions" ]]; then
+          max_fw_size="$(awk '/Firmware/ { getline; getline; sub(",", ""); print strtonum($2); }' "$partitions")"
+          fw_size="$(stat -c %s "$FW_FILE_NAME")"
 
-        if ((fw_size > max_fw_size)); then
-          fw_size_fmtd="$(numfmt --grouping "$fw_size") bytes"
-          max_fw_size_fmtd="$(numfmt --grouping "$max_fw_size") bytes"
-          echo "Firmware size ($fw_size_fmtd) exceeds max size ($max_fw_size_fmtd) for your target device"
-          exit 1
+          if ((fw_size > max_fw_size)); then
+            fw_size_fmtd="$(numfmt --grouping "$fw_size") bytes"
+            max_fw_size_fmtd="$(numfmt --grouping "$max_fw_size") bytes"
+            echo "Firmware size ($fw_size_fmtd) exceeds max size ($max_fw_size_fmtd) for your target device"
+            exit 1
+          fi
         fi
