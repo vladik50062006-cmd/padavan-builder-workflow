@@ -26,14 +26,11 @@ jobs:
     - name: Download sources and toolchain
       run: |
         git config --global --add safe.directory '*'
-        # Клонируем правильный репозиторий из variables вместо старого hanwckf
         git clone --depth=1 -b "$PADAVAN_BRANCH" "$PADAVAN_REPO" padavan-ng
         git -C padavan-ng checkout "$PADAVAN_COMMIT"
         
-        # Распаковываем тулчейн
         wget -qO- "$PADAVAN_TOOLCHAIN_URL" | tar -C padavan-ng --zstd -xf -
         
-        # Автоматически находим папку bin тулчейна и экспортируем в PATH
         TOOLCHAIN_BIN=$(find padavan-ng/ -type d -path "*/bin" | head -n 1)
         echo "$GITHUB_WORKSPACE/$TOOLCHAIN_BIN" >> $GITHUB_PATH
 
@@ -57,7 +54,9 @@ jobs:
         cp build.config padavan-ng/trunk/.config
         cd padavan-ng/trunk
         
-        # Убран вызов clear_tree.sh, запускаем напрямую сборку
+        # Сбрасываем конфиг BusyBox для работы при отключенных модулях (USB/IPv6)
+        make -C user/busybox clean
+        
         ./build_firmware.sh
 
         FW_FILE_NAME="$(find images -type f -regextype posix-extended -iregex ".*\.(trx|bin)$" \
